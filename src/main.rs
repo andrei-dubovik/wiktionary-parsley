@@ -52,6 +52,8 @@ fn pages(reader: impl BufRead) -> impl Iterator<Item = (String, String)> {
                 Err(_) => panic!(),
                 _ => (),
             }
+            elem_buf.clear();
+            text_buf.clear();
         }
     })
 }
