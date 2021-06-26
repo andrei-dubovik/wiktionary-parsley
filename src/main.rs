@@ -12,12 +12,11 @@ use quick_xml::Reader;
 use quick_xml::events::Event;
 use regex::Regex;
 use serde::Serialize;
+use serde::ser::{Serializer, SerializeSeq};
 use serde_json;
 
 // Local modules
-mod list;
 mod partitioner;
-use list::List;
 use partitioner::Partitioner;
 
 
@@ -143,11 +142,25 @@ impl<'a> IdTable<'a> {
 }
 
 
-// Structures to hold parsed Wiktionary data
+// Serialize a HashMap as a list of its values
+fn serialize_values<K, V, S>(map: &HashMap<K, V>, serializer: S) -> Result<S::Ok, S::Error>
+    where V: Serialize,
+          S: Serializer,
+{
+    let mut seq = serializer.serialize_seq(Some(map.len()))?;
+    for value in map.values() {
+        seq.serialize_element(value)?;
+    }
+    seq.end()
+}
+
+
+// Structures to hold and serialize parsed Wiktionary data
 #[derive(Default, Serialize)]
 struct Relations {
     plural_of: HashSet<(usize, usize)>,  // directed edges
-    alt_forms: List<Vec<usize>>,  // clusters
+    #[serde(serialize_with = "serialize_values")]
+    alt_forms: HashMap<usize, Vec<usize>>, // clusters
 }
 
 

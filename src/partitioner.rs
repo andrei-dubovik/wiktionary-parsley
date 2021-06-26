@@ -3,22 +3,20 @@
 // A generally inefficient algorithm to construct connected components dynamically
 // (However, this algorithm is efficient if connected components are bounded.)
 
-use std::ptr;
-
-use crate::list::{List, Node};
+use std::collections::HashMap;
 
 
 pub struct Partitioner<'a> {
-    list: &'a mut List<Vec<usize>>,
-    nodes: Vec<*mut Node<Vec<usize>>>,
+    partitions: &'a mut HashMap<usize, Vec<usize>>,
+    index: HashMap<usize, usize>,
 }
 
 
 impl<'a> Partitioner<'a> {
-    pub fn new(list: &'a mut List<Vec<usize>>) -> Self {
+    pub fn new(partitions: &'a mut HashMap<usize, Vec<usize>>) -> Self {
         Partitioner {
-            list,
-            nodes: Vec::new(),
+            partitions,
+            index: HashMap::new(),
         }
     }
 
@@ -26,41 +24,39 @@ impl<'a> Partitioner<'a> {
         if i == j {
             return;  //  drop self references
         }
-        let len = i.max(j) + 1;
-        if len > self.nodes.len() {
-            self.nodes.resize_with(len, ptr::null_mut);
-        }
-        let pi = self.nodes[i];
-        let pj = self.nodes[j];
-        match (!pi.is_null(), !pj.is_null()) {
-            (false, false) => {
-                let node = self.list.push_back(vec![i, j]);
-                self.nodes[i] = node;
-                self.nodes[j] = node;
+        let pi = self.index.get(&i).cloned();
+        let pj = self.index.get(&j).cloned();
+        match (pi, pj) {
+            (None, None) => {
+                self.partitions.insert(i, vec![i, j]);
+                self.index.insert(i, i);
+                self.index.insert(j, i);
             },
-            (false, true) => {
-                unsafe { (*pj).as_mut().push(i); }
-                self.nodes[i] = pj;
+            (None, Some(pj)) => {
+                self.partitions.get_mut(&pj).unwrap().push(i);
+                self.index.insert(i, pj);
             },
-            (true, false) => {
-                unsafe { (*pi).as_mut().push(j); }
-                self.nodes[j] = pi;
+            (Some(pi), None) => {
+                self.partitions.get_mut(&pi).unwrap().push(j);
+                self.index.insert(j, pi);
             },
-            (true, true) => {
+            (Some(pi), Some(pj)) => {
                 if pi != pj {
-                    let vi = unsafe { (*pi).as_mut() };
-                    let vj = unsafe { (*pj).as_mut() };
+                    let vi = &self.partitions[&pi];
+                    let vj = &self.partitions[&pj];
                     if vj.len() < vi.len() {
                         for j in vj {
-                            self.nodes[*j] = pi;
+                            self.index.insert(*j, pi);
                         }
-                        unsafe { vi.append(&mut (*pj).take()); }
+                        let mut vj = self.partitions.remove(&pj).unwrap();
+                        self.partitions.get_mut(&pi).unwrap().append(&mut vj);
                     }
                     else {
                         for i in vi {
-                            self.nodes[*i] = pj;
+                            self.index.insert(*i, pj);
                         }
-                        unsafe { vj.append(&mut (*pi).take()); }
+                        let mut vi = self.partitions.remove(&pi).unwrap();
+                        self.partitions.get_mut(&pj).unwrap().append(&mut vi);
                     }
                 }
             },
