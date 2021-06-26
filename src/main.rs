@@ -1,7 +1,7 @@
 // Copyright (c) 2019-2020, Andrey Dubovik <andrei@dubovik.eu>
 
 // Standard library
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashSet, HashMap, BTreeMap};
 use std::io::{self, BufRead};
 use std::iter;
 
@@ -116,7 +116,7 @@ fn sections(text: &str) -> impl Iterator<Item = (Option<String>, &str)> {
 // A simple structure to manage unique word identifiers
 struct IdTable<'a> {
     vec: &'a mut Vec<String>,
-    hash: HashMap<String, usize>,
+    hash: BTreeMap<String, usize>,
 }
 
 
