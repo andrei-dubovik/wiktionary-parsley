@@ -17,6 +17,7 @@ use serde_json;
 
 // Local modules
 mod partitioner;
+mod template;
 use partitioner::Partitioner;
 
 
@@ -264,26 +265,6 @@ static DISPATCHER: phf::Map<&'static str, fn(&mut WiktionaryView, &str, Option<&
     "alter" => alter,
 };
 
-lazy_regex! {
-    TEMPLATE: &format!(
-        r"(?s)\{{\{{((?:{})[ \n]*\|.*?)\}}\}}",
-        DISPATCHER.keys().map(|x| *x).collect::<Vec<_>>().join("|"),
-    ),
-    ARG_SEP: r"[ \n]*\|[ \n]*",
-}
-
-
-// Create an iterator over templates
-// TODO: proper handling of numbered and named parameters
-fn templates(text: &str) -> impl Iterator<Item = Vec<&str>> {
-    TEMPLATE.captures_iter(text).map(|c| {
-        ARG_SEP
-            .split(c.get(1).unwrap().as_str())
-            .filter(|a| !a.contains("="))  // not-handled yet
-            .collect()
-    })
-}
-
 
 // Explicitly list which parts of speech to collect
 static POS_HEADERS: phf::Set<&'static str> = phf_set! {
@@ -313,11 +294,12 @@ fn collect(reader: impl BufRead) -> Wiktionary {
         if let Some(text) = extract_english(&text) {
             for (section, text) in sections(text) {
                 // Templates
-                for args in templates(&text) {
-                    if let Some(func) = DISPATCHER.get(args[0]) {
-                        func(&mut view, &word, section.as_deref(), &args[1..]).ok();
+                template::process_templates(text, |name, args| {
+                    if let Some(func) = DISPATCHER.get(name) {
+                        let (args, _kwargs) = template::decode_arguments(args);
+                        func(&mut view, &word, section.as_deref(), &args).ok();
                     }
-                }
+                });
                 // Parts of speech
                 if let Some(section) = section {
                     if POS_HEADERS.contains(&section) {
