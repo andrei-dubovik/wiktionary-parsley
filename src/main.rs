@@ -216,11 +216,19 @@ enum Error {
 }
 
 
-fn plural_of(view: &mut WiktionaryView, word: &str, section: Option<&str>, args: &[&str]) -> Result<(), Error>{
-    if let Some("noun") = section {
-        if args.get(0).ok_or(Error::MissingTemplateArgument)? == &"en" {
-            let id1 = view.word_id(word);
-            let id2 = view.word_id(args.get(1).ok_or(Error::MissingTemplateArgument)?);
+struct TemplateContext<'a> {
+    word: &'a str,
+    section: Option<&'a str>,
+    args: Vec<&'a str>,
+    kwargs: HashMap<&'a str, &'a str>,
+}
+
+
+fn plural_of(view: &mut WiktionaryView, cxt: TemplateContext) -> Result<(), Error> {
+    if let Some("noun") = cxt.section {
+        if cxt.args.get(0).ok_or(Error::MissingTemplateArgument)? == &"en" {
+            let id1 = view.word_id(cxt.word);
+            let id2 = view.word_id(cxt.args.get(1).ok_or(Error::MissingTemplateArgument)?);
             view.plural_of.insert((id1, id2));
         }
     }
@@ -228,20 +236,20 @@ fn plural_of(view: &mut WiktionaryView, word: &str, section: Option<&str>, args:
 }
 
 
-fn alt_forms(view: &mut WiktionaryView, word: &str, _section: Option<&str>, args: &[&str]) -> Result<(), Error> {
-    if args.get(0).ok_or(Error::MissingTemplateArgument)? == &"en" {
-        let id1 = view.word_id(word);
-        let id2 = view.word_id(args.get(1).ok_or(Error::MissingTemplateArgument)?);
+fn alt_forms(view: &mut WiktionaryView, cxt: TemplateContext) -> Result<(), Error> {
+    if cxt.args.get(0).ok_or(Error::MissingTemplateArgument)? == &"en" {
+        let id1 = view.word_id(cxt.word);
+        let id2 = view.word_id(cxt.args.get(1).ok_or(Error::MissingTemplateArgument)?);
         view.alt_forms.insert(id1, id2);
     }
     Ok(())
 }
 
 
-fn alter(view: &mut WiktionaryView, word: &str, _section: Option<&str>, args: &[&str]) -> Result<(), Error> {
-    if args.get(0).ok_or(Error::MissingTemplateArgument)? == &"en" {
-        let id1 = view.word_id(word);
-        for arg in args[1..].iter().take_while(|a| **a != "") {
+fn alter(view: &mut WiktionaryView, cxt: TemplateContext) -> Result<(), Error> {
+    if cxt.args.get(0).ok_or(Error::MissingTemplateArgument)? == &"en" {
+        let id1 = view.word_id(cxt.word);
+        for arg in cxt.args[1..].iter().take_while(|a| **a != "") {
             let id2 = view.word_id(arg);
             view.alt_forms.insert(id1, id2);
         }
@@ -251,7 +259,7 @@ fn alter(view: &mut WiktionaryView, word: &str, _section: Option<&str>, args: &[
 
 
 // Template dispatching
-static DISPATCHER: phf::Map<&'static str, fn(&mut WiktionaryView, &str, Option<&str>, &[&str]) -> Result<(), Error>> = phf_map! {
+static DISPATCHER: phf::Map<&'static str, fn(&mut WiktionaryView, TemplateContext) -> Result<(), Error>> = phf_map! {
     "plural of" => plural_of,
     "standard spelling of" => alt_forms,
     "alternative spelling of" => alt_forms,
@@ -296,8 +304,12 @@ fn collect(reader: impl BufRead) -> Wiktionary {
                 // Templates
                 template::process_templates(text, |name, args| {
                     if let Some(func) = DISPATCHER.get(name) {
-                        let (args, _kwargs) = template::decode_arguments(args);
-                        func(&mut view, &word, section.as_deref(), &args).ok();
+                        let (args, kwargs) = template::decode_arguments(args);
+                        func(&mut view, TemplateContext {
+                            word: &word,
+                            section: section.as_deref(),
+                            args, kwargs
+                        }).ok();
                     }
                 });
                 // Parts of speech
