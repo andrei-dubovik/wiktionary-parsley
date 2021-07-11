@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, Andrey Dubovik <andrei@dubovik.eu>
+// Copyright (c) 2021, Andrey Dubovik <andrei@dubovik.eu>
 
 // A generally inefficient algorithm to construct connected components dynamically
 // (However, this algorithm is efficient if connected components are bounded.)

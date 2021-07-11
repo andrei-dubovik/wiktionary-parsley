@@ -1,4 +1,4 @@
-// Copyright (c) 2019-2020, Andrey Dubovik <andrei@dubovik.eu>
+// Copyright (c) 2021, Andrey Dubovik <andrei@dubovik.eu>
 
 // Standard library
 use std::collections::{HashSet, HashMap, BTreeMap};
