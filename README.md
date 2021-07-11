@@ -34,6 +34,6 @@ A compact JSON structure is used. Words are listed only once, in `words`, and th
   - `article`;
 - `rel`: relationships between words;
   - `plural_of`: a list of directed edges `(i, j)`, where `i` is a plural of `j`;
-  - `alt_forms`: a list of clusters of words that are alternative forms of one another.
+  - `alt_forms`: a list of clusters of words that are alternative forms of one another. (Obsolete and rare alternative forms are skipped.)
 
 A processed 2021-06-01 dump can be found here: https://dubovik.eu/static/enwiktionary-20210601.json.zst.

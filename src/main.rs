@@ -71,6 +71,7 @@ macro_rules! lazy_regex {
 lazy_regex! {
     ENGLISH: r"(?ism)(?:^== *english *== *\n)(.*?)(?:^={1,2}[^=]|\z)",
     SECTION: r"(?m)^=+ *([^=]+?)( [0-9]+)? *=+ *\n",
+    OBSOLETE: r"\b(?:obsolete|archaic|dated|rare)\b",
 }
 
 
@@ -248,8 +249,20 @@ fn alt_forms(view: &mut WiktionaryView, cxt: TemplateContext) -> Result<(), Erro
 
 fn alter(view: &mut WiktionaryView, cxt: TemplateContext) -> Result<(), Error> {
     if cxt.args.get(0).ok_or(Error::MissingTemplateArgument)? == &"en" {
+        let (forms, dialects) = match cxt.args.iter().position(|a| *a == "") {
+            Some(delim) => {
+                (&cxt.args[1..delim], &cxt.args[delim+1..])
+            },
+            None => {
+                (&cxt.args[1..], &cxt.args[0..0])
+            },
+        };
+        // Skip obsolete and rare alternative forms
+        if dialects.iter().any(|arg| OBSOLETE.is_match(arg)) {
+            return Ok(())
+        }
         let id1 = view.word_id(cxt.word);
-        for arg in cxt.args[1..].iter().take_while(|a| **a != "") {
+        for arg in forms {
             let id2 = view.word_id(arg);
             view.alt_forms.insert(id1, id2);
         }
